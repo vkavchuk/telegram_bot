@@ -125,25 +125,34 @@ async def send_welcome(message: types.Message):
     await message.answer(TEXTS["start"][lang], reply_markup=language_kb)
 
 # After updating the trip info
-@dp.message(F.text.startswith("/update_trip"))
-async def admin_update_trip(message: types.Message):
-    if message.from_user.id not in ADMIN_IDS:
-        return await message.reply("❌ You don't have permission to use this command.")
-    
+@dp.message(F.text.startswith("/update_trip") & F.from_user.id == ADMIN_USER_ID)
+async def update_trip_info(message: types.Message):
     try:
-        _, country, info = message.text.split(" ", 2)
-        if country in TRIP_DATA:
-            # Update trip information
-            TRIP_DATA[country]["ua"] = info
-            TRIP_DATA[country]["en"] = translate(info, "en")
-            TRIP_DATA[country]["de"] = translate(info, "de")
-            
-            # Rebuild country menu with updated data
-            await message.reply(f"✅ Trip info for {country.capitalize()} updated successfully with translations!")
-        else:
-            await message.reply(f"❌ Country {country} not found in database.")
-    except ValueError:
-        await message.reply("❌ Invalid format. Use: /update_trip <country> <info>")
+        # Parse the command: `/update_trip france <info>`
+        parts = message.text.split(" ", 2)
+        if len(parts) < 3:
+            await message.reply("❌ Usage: /update_trip <country_key> <new_info>")
+            return
+
+        country_key, new_info = parts[1], parts[2]
+
+        # Check if the country key is valid
+        if country_key not in TEXTS["trip_info"]:
+            await message.reply("❌ Invalid country key. Use valid keys like 'france' or 'amsterdam'.")
+            return
+
+        # Translate the info into supported languages
+        translations = {
+            "ua": new_info,  # Original text is assumed to be in Ukrainian
+            "de": translator.translate(new_info, src="uk", dest="de").text,
+            "en": translator.translate(new_info, src="uk", dest="en").text
+        }
+
+        # Update trip info
+        TEXTS["trip_info"][country_key] = translations
+        await message.reply(f"✅ Trip info for {country_key.capitalize()} updated successfully with translations!")
+    except Exception as e:
+        await message.reply(f"❌ Error: {str(e)}")
 
 
 @dp.message(F.photo & F.caption.startswith("/upload_photo") & F.from_user.id == ADMIN_USER_ID)
