@@ -5,7 +5,7 @@ import asyncio
 
 API_TOKEN = '8101662681:AAHcWs0j798OYox7ul8c34ypJ3FNJy1CBj0'
 
-ADMIN_USER_ID = 713895304  
+ADMIN_USER_ID = [713895304, 821231747]  
 
 # Initialize the bot
 translator = Translator()
@@ -97,24 +97,12 @@ def get_main_menu(lang):
 
 
 # EU trips menu
-def get_country_menu(lang):
-    countries = {
-        "france": {
-            "ua": "🇫🇷 Франція",
-            "de": "🇫🇷 Frankreich",
-            "en": "🇫🇷 France"
-        },
-        "amsterdam": {
-            "ua": "🇳🇱 Амстердам",
-            "de": "🇳🇱 Amsterdam",
-            "en": "🇳🇱 Amsterdam"
-        }
-    }
+def build_country_menu(lang):
     buttons = [
-        [InlineKeyboardButton(text=countries[country][lang], callback_data=country)]
-        for country in countries
+        [InlineKeyboardButton(text=f"🇫🇷 {TRIP_DATA['france'][lang]}", callback_data="france")],
+        [InlineKeyboardButton(text=f"🇳🇱 {TRIP_DATA['amsterdam'][lang]}", callback_data="amsterdam")],
+        [InlineKeyboardButton(text=TEXTS["back"][lang], callback_data="main_menu")]
     ]
-    buttons.append([InlineKeyboardButton(text=TEXTS["back"][lang], callback_data="main_menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -136,34 +124,27 @@ async def send_welcome(message: types.Message):
     lang = user_language.get(message.from_user.id, "en")  # Default to English
     await message.answer(TEXTS["start"][lang], reply_markup=language_kb)
 
-@dp.message(F.text.startswith("/update_trip") & F.from_user.id == ADMIN_USER_ID)
-async def update_trip_info(message: types.Message):
+# After updating the trip info
+@dp.message(F.text.startswith("/update_trip"))
+async def admin_update_trip(message: types.Message):
+    if message.from_user.id not in ADMIN_IDS:
+        return await message.reply("❌ You don't have permission to use this command.")
+    
     try:
-        # Parse the command: `/update_trip france <info>`
-        parts = message.text.split(" ", 2)
-        if len(parts) < 3:
-            await message.reply("❌ Usage: /update_trip <country_key> <new_info>")
-            return
+        _, country, info = message.text.split(" ", 2)
+        if country in TRIP_DATA:
+            # Update trip information
+            TRIP_DATA[country]["ua"] = info
+            TRIP_DATA[country]["en"] = translate(info, "en")
+            TRIP_DATA[country]["de"] = translate(info, "de")
+            
+            # Rebuild country menu with updated data
+            await message.reply(f"✅ Trip info for {country.capitalize()} updated successfully with translations!")
+        else:
+            await message.reply(f"❌ Country {country} not found in database.")
+    except ValueError:
+        await message.reply("❌ Invalid format. Use: /update_trip <country> <info>")
 
-        country_key, new_info = parts[1], parts[2]
-
-        # Check if the country key is valid
-        if country_key not in TEXTS["trip_info"]:
-            await message.reply("❌ Invalid country key. Use valid keys like 'france' or 'amsterdam'.")
-            return
-
-        # Translate the info into supported languages
-        translations = {
-            "ua": new_info,  # Original text is assumed to be in Ukrainian
-            "de": translator.translate(new_info, src="uk", dest="de").text,
-            "en": translator.translate(new_info, src="uk", dest="en").text
-        }
-
-        # Update trip info
-        TEXTS["trip_info"][country_key] = translations
-        await message.reply(f"✅ Trip info for {country_key.capitalize()} updated successfully with translations!")
-    except Exception as e:
-        await message.reply(f"❌ Error: {str(e)}")
 
 @dp.message(F.photo & F.caption.startswith("/upload_photo") & F.from_user.id == ADMIN_USER_ID)
 async def upload_trip_photo(message: types.Message):
@@ -212,21 +193,26 @@ async def show_general_faq(callback: types.CallbackQuery):
 @dp.callback_query(F.data == "eu_trips")
 async def show_countries(callback: types.CallbackQuery):
     lang = user_language.get(callback.from_user.id, "en")
-    await callback.message.edit_text(TEXTS["countries"][lang], reply_markup=get_country_menu(lang))
+    await callback.message.edit_text(TEXTS["countries"][lang], reply_markup=build_country_menu(lang))
 
 # Handle country selection
 @dp.callback_query(F.data.in_(["france", "amsterdam"]))
 async def show_trip_info(callback: types.CallbackQuery):
     lang = user_language.get(callback.from_user.id, "en")
     trip_info = TEXTS["trip_info"][callback.data][lang]
-    photo_id = TRIP_PHOTOS.get(callback.data)
+    photo_path = TRIP_PHOTOS[callback.data]  # Шлях до фото
 
-    if photo_id:
-        # Send photo with trip info
-        await callback.message.answer_photo(photo=photo_id, caption=trip_info, reply_markup=get_trip_options(lang))
-    else:
-        # Send only text if no photo is available
-        await callback.message.edit_text(trip_info, reply_markup=get_trip_options(lang))
+    try:
+        # Надсилаємо фото без підпису
+        photo = types.InputFile(photo_path)
+        await bot.send_photo(chat_id=callback.from_user.id, photo=photo)
+        
+        # Надсилаємо текст окремо
+        await bot.send_message(chat_id=callback.from_user.id, text=trip_info)
+    except Exception as e:
+        # Обробляємо помилки
+        await callback.message.answer(f"❌ Error: {str(e)}")
+
 
 
 # Back to main menu
