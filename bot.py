@@ -209,18 +209,15 @@ async def show_countries(callback: types.CallbackQuery):
 async def show_trip_info(callback: types.CallbackQuery):
     lang = user_language.get(callback.from_user.id, "en")
     trip_info = TEXTS["trip_info"][callback.data][lang]
-    photo_path = TRIP_PHOTOS[callback.data]  # Шлях до фото
+    photo_id = TRIP_PHOTOS.get(callback.data)
 
-    try:
-        # Надсилаємо фото без підпису
-        photo = types.InputFile(photo_path)
-        await bot.send_photo(chat_id=callback.from_user.id, photo=photo)
-        
-        # Надсилаємо текст окремо
-        await bot.send_message(chat_id=callback.from_user.id, text=trip_info)
-    except Exception as e:
-        # Обробляємо помилки
-        await callback.message.answer(f"❌ Error: {str(e)}")
+    if photo_id:
+        # Send photo with trip info
+        await callback.message.answer_photo(photo=photo_id, caption=trip_info, reply_markup=get_trip_options(lang))
+    else:
+        # Send only text if no photo is available
+        await callback.message.edit_text(trip_info, reply_markup=get_trip_options(lang))
+
 
 
 
