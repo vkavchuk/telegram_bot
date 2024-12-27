@@ -5,7 +5,7 @@ import asyncio
 
 API_TOKEN = '8101662681:AAHcWs0j798OYox7ul8c34ypJ3FNJy1CBj0'
 
-ADMIN_USER_ID = [713895304, 821231747]  
+ADMIN_USER_ID = 713895304
 
 # Initialize the bot
 translator = Translator()
