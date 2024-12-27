@@ -45,8 +45,6 @@ TRIP_FAQ = {
 # Texts for different languages
 TEXTS = {
     "start": {
-        "ua": "🌍 Оберіть мову:",
-        "de": "🌍 Wählen Sie eine Sprache:",
         "en": "🌍 Choose a language:"
     },
     "menu": {
@@ -58,6 +56,16 @@ TEXTS = {
         "ua": "⬅️ Назад",
         "de": "⬅️ Zurück",
         "en": "⬅️ Back"
+    },
+    "shopping_poland": {
+        "ua": "🛍️ Інформація про закупи в Польщі:...",
+        "de": "🛍️ Informationen zum Einkaufen in Polen:...",
+        "en": "🛍️ Information about shopping in Poland:..."
+    },
+    "passport_service": {
+        "ua": "📘 Інформація про паспортний сервіс:...",
+        "de": "📘 Informationen zum Passdienst:...",
+        "en": "📘 Information about passport service:..."
     },
     "faq": {
         "ua": "❓ Відповіді на запитання:\n- Як забронювати поїздку?\n- Як відправити посилку?\nНапишіть в наш Telegram для більше інформації.",
@@ -88,12 +96,14 @@ def get_main_menu(lang):
     buttons = [
         [InlineKeyboardButton(text="🚍 Забронювати поїздку" if lang == "ua" else "🚍 Book a Trip" if lang == "en" else "🚍 Reise buchen", callback_data="book_trip")],
         [InlineKeyboardButton(text="📦 Відправлення посилки" if lang == "ua" else "📦 Send a Parcel" if lang == "en" else "📦 Paket senden", callback_data="send_parcel")],
-        [InlineKeyboardButton(text="🌍 Подорожі в ЄС" if lang == "ua" else "🌍 Trips to EU" if lang == "en" else "🌍 Reisen in die EU", callback_data="eu_trips")],
         [InlineKeyboardButton(text="📅 Розклад маршрутів" if lang == "ua" else "📅 Schedule" if lang == "en" else "📅 Fahrplan", callback_data="schedule")],
+        [InlineKeyboardButton(text="🛍️ Закупи в Польщі" if lang == "ua" else "🛍️ Shopping in Poland", callback_data="shopping_poland")],
+        [InlineKeyboardButton(text="📘 Паспортний сервіс" if lang == "ua" else "📘 Passport Service", callback_data="passport_service")],
         [InlineKeyboardButton(text="❓ Відповіді на запитання" if lang == "ua" else "❓ FAQ" if lang == "en" else "❓ FAQ", callback_data="faq_main")],
         [InlineKeyboardButton(text=TEXTS["back"][lang], callback_data="go_back")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 
 # EU trips menu
@@ -181,6 +191,26 @@ async def show_trip_faq(callback: types.CallbackQuery):
     trip_key = callback.message.text.split()[1].lower()  # Extract country from the message
     faq_text = TRIP_FAQ.get(trip_key, {}).get(lang, "No FAQs available for this trip.")
     await callback.message.edit_text(faq_text, reply_markup=get_trip_options(lang))
+
+@dp.callback_query(F.data == "shopping_poland")
+async def show_shopping_poland(callback: types.CallbackQuery):
+    lang = user_language.get(callback.from_user.id, "en")
+    shopping_info = "🛍️ Інформація про закупи в Польщі:\n- Що можна доставити\n- Як замовити\n- Контакт для уточнень."  # Example content
+    await callback.message.edit_text(shopping_info, reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад" if lang == "ua" else "🔙 Back", callback_data="main_menu")]
+        ]
+    ))
+
+@dp.callback_query(F.data == "passport_service")
+async def show_passport_service(callback: types.CallbackQuery):
+    lang = user_language.get(callback.from_user.id, "en")
+    passport_info = "📘 Інформація про паспортний сервіс:\n- Як забронювати\n- Дати поїздок\n- Контакти."  # Example content
+    await callback.message.edit_text(passport_info, reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад" if lang == "ua" else "🔙 Back", callback_data="main_menu")]
+        ]
+    ))
 
 
 # Handle language selection
